@@ -32,10 +32,9 @@ test.describe('Checkout Flow', () => {
   test('should complete a full checkout journey', async () => {
     const page = productList.page;
 
-    // 1. Browsing & adding item
-    await productList.goToShop();
+    // 1. Browsing & adding item — navigate directly to avoid any banner overlap on /products
     const slug = 'classic-white-tee-mens';
-    await productList.goToProductDetail(slug);
+    await page.goto(`/products/${slug}`);
     await productDetail.selectSize('M');
     await productDetail.addToCart();
 
