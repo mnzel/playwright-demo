@@ -1,6 +1,6 @@
 # 🛍️ Northwind Goods — E2E Test Suite
 
-End-to-end test automation for the Northwind Goods storefront, built with **Playwright** and **TypeScript**. The suite covers 9 tests across 4 spec files, all running against a real React + Vite app with a live third-party cookie consent integration.
+End-to-end test automation for the Northwind Goods storefront, built with **Playwright** and **TypeScript**. The suite covers 15 tests across 4 spec files, all running against a real React + Vite app with a live third-party cookie consent integration.
 
 ---
 
@@ -8,13 +8,15 @@ End-to-end test automation for the Northwind Goods storefront, built with **Play
 
 ```
 playwright-demo/
-├── app/                    # React + Vite storefront (auto-started by Playwright)
-├── page-objects/           # Page Object Models — one class per page/feature
+├── app/                        # React + Vite storefront (auto-started by Playwright)
+├── page-objects/               # Page Object Models — one class per page/feature
 ├── tests/
-│   ├── written-spec/       # Plain-English specifications (source of truth)
-│   ├── generated-spec/     # Formal spec documents derived from written specs
-│   └── *.spec.ts           # Playwright test files
-└── playwright.config.ts    # Browser config, webServer, env vars
+│   ├── fixtures/
+│   │   └── test-data.ts        # Centralised test data (products, shipping, payment, users)
+│   ├── written-spec/           # Plain-English specifications (source of truth)
+│   ├── generated-spec/         # Formal spec documents derived from written specs
+│   └── *.spec.ts               # Playwright test files
+└── playwright.config.ts        # Browser config, webServer, env vars
 ```
 
 ---
@@ -45,7 +47,7 @@ playwright-demo/
 
 | Command | Description |
 |---|---|
-| `npm test` | Run all 9 tests headlessly |
+| `npm test` | Run all 15 tests headlessly |
 | `npm run test:ui` | Open the Playwright interactive UI |
 | `npm run test:debug` | Step through tests with the debugger |
 | `npx playwright test tests/journey.spec.ts` | Run a single spec file |
@@ -57,10 +59,10 @@ playwright-demo/
 
 ### 🔐 Authentication (`auth.spec.ts`) — 1 test
 
-A single flow that covers the full login lifecycle in one pass — no duplicate setup overhead.
+A single flow covering the full login lifecycle in one pass — no duplicate setup overhead.
 
-- Submits invalid credentials → asserts the inline error message appears and URL stays at `/login`
-- Submits valid credentials → asserts "Welcome back" toast, redirect to `/`, and user name in header
+- Submits invalid credentials → asserts inline error and URL stays at `/login`
+- Submits valid credentials → asserts "Welcome back" toast, redirect to `/`, user name in header
 - Logs out → asserts account menu reverts to guest state
 
 ---
@@ -69,28 +71,40 @@ A single flow that covers the full login lifecycle in one pass — no duplicate 
 
 Full account registration lifecycle plus form validation edge cases. Each test generates a unique email per run to avoid localStorage collisions across parallel workers.
 
-- **Register, logout, log back in** — new account created, credentials written to localStorage, re-login with the same credentials succeeds
+- **Register, logout, log back in** — new account created, credentials written to localStorage, re-login succeeds
 - **Invalid credentials** — error shown on login, URL stays at `/login`
 - **Mismatched passwords** — field-level inline error on the confirm-password input (not the form-level banner)
 - **Duplicate email** — form-level conflict error shown, URL stays at `/register`
 
 ---
 
-### 🛒 End-to-End Shopping Journey (`journey.spec.ts`) — 1 test
+### 🛒 End-to-End Shopping Journey (`journey.spec.ts`) — 8 tests
 
-A single sequential flow covering the entire purchase funnel from first load to order confirmation. Each step validates a distinct layer of the app.
+#### Main flow — 1 test
+A single sequential flow covering the entire purchase funnel from first load to order confirmation.
 
 1. **Homepage** — correct title, logo, free-shipping banner, category section visible
-2. **Category navigation** — clicking "Men's Apparel" tile updates URL to `?category=apparel-mens` and shows the correct heading
-3. **Search** — navigate to `/products`, search for "Cashmere Cardigan", assert the product card appears and result count is non-zero
-4. **Sort** — sort by price ascending, assert every card's price ≤ the next (extracted via `page.evaluate()`)
-5. **Product detail** — navigate directly to `/products/cashmere-cardigan`, assert name, price, description, stock badge, and all size options
+2. **Category navigation** — clicking "Men's Apparel" tile updates URL to `?category=apparel-mens`
+3. **Search** — search for "Cashmere Cardigan", assert product card appears and result count is non-zero
+4. **Sort** — sort by price ascending, assert every card's price ≤ the next
+5. **Product detail** — assert name, price, description, stock badge, and all size options
 6. **Add to cart** — select size M, add to cart, assert badge shows `1`
-7. **Cart review** — line item visible, subtotal shown, free-shipping unlock message shown ($165 item exceeds $50 threshold)
-8. **Promo code** — apply `WELCOME10`, assert 10% discount value matches `subtotal × 0.1`
-9. **Auth redirect** — unauthenticated checkout redirects to `/login`; after login, auto-forwarded to `/checkout`
+7. **Cart review** — line item visible, subtotal shown, free-shipping unlock message shown
+8. **Promo code** — apply `WELCOME10`, assert 10% discount matches `subtotal × 0.1`
+9. **Auth redirect** — unauthenticated checkout redirects to `/login`; after login, forwarded to `/checkout`
 10. **Checkout** — fill shipping and payment, place order
-11. **Confirmation** — URL matches `/checkout/confirmation`, order ID and line item visible, total non-empty
+11. **Confirmation** — URL matches `/checkout/confirmation`, order ID and line item visible
+
+#### Edge cases — 7 tests
+
+| Test | What it asserts |
+|---|---|
+| Out-of-stock product | "Add to cart" button disabled, text reads "Out of stock", stock badge shows "Out of stock", cart badge never appears |
+| Promo code single-use | `WELCOME10` accepted first time; after removing and re-applying, "already used" error shown and no discount row appears |
+| Empty search | Searching `xyzxyz_no_match` shows `product-grid-empty` message and result count of 0 |
+| Cart persists on refresh | Item added, page reloaded — badge and line item survive the hard reload |
+| Quantity stepper minimum | Decrement disabled at qty 1; re-enables at 2; disables again after decrement back to 1 |
+| Cart cleared after order | After checkout confirmation, cart badge gone and `/cart` shows empty state |
 
 ---
 
@@ -112,6 +126,9 @@ Dedicated suite for the live [Secure Privacy](https://secureprivacy.ai) banner i
 All page interactions live in `page-objects/`. `BasePage` provides shared nav, header locators, and two key helpers:
 - `blockCookieBanner()` — aborts all requests to `secureprivacy.ai` via `page.route()`. Used in every suite that is not testing consent behaviour.
 - `handleCookieBanner()` — accepts the banner via `frameLocator()` if it appears. Used as a safety net.
+
+### Test Data
+All shared constants live in `tests/fixtures/test-data.ts` — product slugs, sizes, shipping address, payment details, and user credentials. Change test data in one place rather than hunting across spec files.
 
 ### Test Isolation
 Each `beforeEach` follows this order:

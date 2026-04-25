@@ -22,10 +22,10 @@ npm run test:ui
 npm run test:debug
 
 # Run a single test file
-npx playwright test tests/cart.spec.ts
+npx playwright test tests/journey.spec.ts
 
 # Run a single test by name
-npx playwright test -g "should add item to cart"
+npx playwright test -g "cart persists"
 ```
 
 ## Architecture
@@ -44,12 +44,14 @@ npx playwright test -g "should add item to cart"
 All POMs live in `page-objects/`. `BasePage` provides shared nav/header locators and a `handleCookieBanner()` helper (Secure Privacy banner — must be dismissed before interacting with the page in most tests). Every other POM extends or composes `BasePage`.
 
 ### Test isolation
-Tests clear `localStorage` in `beforeEach` and call `handleCookieBanner()`. Selectors use `data-testid` attributes; avoid CSS class or position-based selectors. Search input is debounced 400ms — `ProductListPage.search()` waits for the result-count to change rather than sleeping.
+Each `beforeEach` calls `blockCookieBanner()` before the first `page.goto()`, then clears only `ec_*` localStorage keys — never SP consent keys. Selectors use `data-testid` attributes; avoid CSS class or position-based selectors. Search input is debounced 400ms — `ProductListPage.search()` waits for the result-count to change rather than sleeping.
 
 ### Writing new tests
 Every test file imports POMs from `page-objects/`. Instantiate POMs in `beforeEach`, not at the top of `test.describe`. Tests access `process.env.DEMO_EMAIL` / `process.env.DEMO_PASSWORD` for the seeded user; these are populated from `.env` by `playwright.config.ts`.
 
-When registering a new user in tests, generate a unique email per run (e.g. `` `user_${Date.now()}@test.example` ``) to avoid collisions with users persisted in `localStorage` from previous test runs.
+All shared test data (product slugs, shipping address, payment details, user credentials) lives in `tests/fixtures/test-data.ts`. Import from there rather than inlining constants in spec files.
+
+When registering a new user in tests, use `uniqueEmail()` from `tests/fixtures/test-data.ts` to generate a unique email per run and avoid collisions with users persisted in `localStorage` from previous test runs.
 
 ### Cookie banner
 The Secure Privacy banner renders inside `iframe[title="Cookie Banner"]` (`id="ifrmCookieBanner"`). `BasePage.handleCookieBanner()` uses `frameLocator()` to reach the button inside — the old page-level selectors (`#sp-cookie-allow`) do not work for iframe-based content.
