@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.tsbuildinfo
+.claude/settings.local.json
+
+# Local-only tech-test notes — never commit
+PITFALLS.md
+*.local
+.DS_Store
+.vite
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
