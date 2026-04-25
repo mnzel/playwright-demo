@@ -33,11 +33,11 @@ playwright-demo/
    ```bash
    npx playwright install chromium --with-deps
    ```
-4. **Create a `.env` file** in the root (already provided for this demo)
-   ```env
-   DEMO_EMAIL=test@example.com
-   DEMO_PASSWORD=Password123!
+4. **Set up environment variables** — copy the example file and you're done:
+   ```bash
+   cp .env.example .env
    ```
+   The credentials are pre-filled in `.env.example` — no changes needed.
 
 ---
 
