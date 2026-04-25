@@ -2,11 +2,7 @@ import { test, expect } from '@playwright/test';
 import { RegisterPage } from '../page-objects/RegisterPage.ts';
 import { LoginPage } from '../page-objects/LoginPage.ts';
 import { BasePage } from '../page-objects/BasePage.ts';
-
-// Unique email per test run to avoid collisions with persisted localStorage users
-const uniqueEmail = () => `user_${Date.now()}@test.example`;
-const TEST_NAME = 'Jane Tester';
-const TEST_PASSWORD = 'SecurePass99!';
+import { TEST_USER, uniqueEmail } from './fixtures/test-data.ts';
 
 test.describe('Register and Login', () => {
   let basePage: BasePage;
@@ -41,7 +37,7 @@ test.describe('Register and Login', () => {
 
     // Register
     await registerPage.goToRegisterPage();
-    await registerPage.register(TEST_NAME, email, TEST_PASSWORD);
+    await registerPage.register(TEST_USER.name, email, TEST_USER.password);
 
     await expect(page).toHaveURL('/');
     await expect(page.getByText('Account created!', { exact: false })).toBeVisible();
@@ -61,7 +57,7 @@ test.describe('Register and Login', () => {
 
     // Log back in with the registered credentials
     await basePage.goToLogin();
-    await loginPage.login(email, TEST_PASSWORD);
+    await loginPage.login(email, TEST_USER.password);
 
     await expect(page).toHaveURL('/');
     await expect(page.getByText('Welcome back!', { exact: false })).toBeVisible();
@@ -83,7 +79,7 @@ test.describe('Register and Login', () => {
     const registerPage = new RegisterPage(page);
 
     await registerPage.goToRegisterPage();
-    await registerPage.register(TEST_NAME, uniqueEmail(), TEST_PASSWORD, 'DifferentPass99!');
+    await registerPage.register(TEST_USER.name, uniqueEmail(), TEST_USER.password, 'DifferentPass99!');
 
     // Mismatched passwords surface as a field-level error on the confirm input
     await expect(page.getByTestId('register-confirm-error')).toBeVisible();
@@ -96,7 +92,7 @@ test.describe('Register and Login', () => {
 
     await registerPage.goToRegisterPage();
     // Use the seeded demo user email
-    await registerPage.register('Demo User', process.env.DEMO_EMAIL!, TEST_PASSWORD);
+    await registerPage.register('Demo User', process.env.DEMO_EMAIL!, TEST_USER.password);
 
     await expect(registerPage.errorMessage).toBeVisible();
     await expect(registerPage.errorMessage).toContainText(/already exists/i);

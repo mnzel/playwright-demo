@@ -6,23 +6,7 @@ import { ProductDetailPage } from '../page-objects/ProductDetailPage.ts';
 import { CartPage } from '../page-objects/CartPage.ts';
 import { CheckoutPage } from '../page-objects/CheckoutPage.ts';
 import { ConfirmationPage } from '../page-objects/ConfirmationPage.ts';
-
-const PRODUCT = { slug: 'cashmere-cardigan', name: 'Cashmere Cardigan', size: 'M' };
-
-const SHIPPING = {
-  name: 'Jane Doe',
-  address: '1 Test Street',
-  city: 'London',
-  zip: 'EC1A 1BB',
-  country: 'United Kingdom',
-};
-
-const PAYMENT = {
-  name: 'Jane Doe',
-  number: '4242 4242 4242 4242',
-  expiry: '12/30',
-  cvc: '123',
-};
+import { PRODUCT, WHITE_TEE, OUT_OF_STOCK, SHIPPING, PAYMENT } from './fixtures/test-data.ts';
 
 test.describe('End-to-End Shopping Journey', () => {
   let basePage: BasePage;
@@ -109,7 +93,7 @@ test.describe('End-to-End Shopping Journey', () => {
     await expect(productDetail.stockStatus).toContainText('In stock');
 
     // Size selector
-    for (const size of ['XS', 'S', 'M', 'L']) {
+    for (const size of PRODUCT.sizes) {
       await expect(page.getByTestId(`size-option-${size}`)).toBeVisible();
     }
 
@@ -180,8 +164,8 @@ test.describe('Edge Cases', () => {
 
   test('out-of-stock product disables add to cart and shows correct status', async ({ page }) => {
     // selvedge-denim-jeans is seeded with inStock: false, stockCount: 0
-    await page.goto('/products/selvedge-denim-jeans');
-    await expect(page).toHaveURL('/products/selvedge-denim-jeans');
+    await page.goto(`/products/${OUT_OF_STOCK.slug}`);
+    await expect(page).toHaveURL(`/products/${OUT_OF_STOCK.slug}`);
 
     // Stock badge resolves asynchronously — wait for it
     await expect(productDetail.stockStatus).toBeVisible({ timeout: 3000 });
@@ -196,11 +180,10 @@ test.describe('Edge Cases', () => {
   });
 
   test('promo code WELCOME10 can only be applied once per session', async ({ page }) => {
-    const WHITE_TEE = 'classic-white-tee-mens';
     const productDetail = new ProductDetailPage(page);
 
-    await page.goto(`/products/${WHITE_TEE}`);
-    await productDetail.selectSize('M');
+    await page.goto(`/products/${WHITE_TEE.slug}`);
+    await productDetail.selectSize(WHITE_TEE.size);
     await productDetail.addToCart();
 
     await basePage.goToCart();
@@ -238,9 +221,9 @@ test.describe('Edge Cases', () => {
   });
 
   test('cart persists across page refresh', async ({ page }) => {
-    await page.goto('/products/classic-white-tee-mens');
+    await page.goto(`/products/${WHITE_TEE.slug}`);
     const productDetail = new ProductDetailPage(page);
-    await productDetail.selectSize('M');
+    await productDetail.selectSize(WHITE_TEE.size);
     await productDetail.addToCart();
     await expect(basePage.cartBadge).toHaveText('1');
 
@@ -250,11 +233,11 @@ test.describe('Edge Cases', () => {
 
     // Line item is still present in the cart
     await basePage.goToCart();
-    await expect(page.getByTestId('cart-line-list').getByTestId('cart-line-classic-white-tee-mens')).toBeVisible();
+    await expect(page.getByTestId('cart-line-list').getByTestId(`cart-line-${WHITE_TEE.slug}`)).toBeVisible();
   });
 
   test('quantity stepper cannot go below 1', async ({ page }) => {
-    await page.goto('/products/classic-white-tee-mens');
+    await page.goto(`/products/${WHITE_TEE.slug}`);
 
     // Decrement button starts disabled at the minimum (qty = 1)
     await expect(page.getByTestId('qty-decrement')).toBeDisabled();
@@ -282,8 +265,8 @@ test.describe('Edge Cases', () => {
     await expect(page).toHaveURL('/');
 
     // Add item and go to checkout
-    await page.goto('/products/classic-white-tee-mens');
-    await productDetail.selectSize('M');
+    await page.goto(`/products/${WHITE_TEE.slug}`);
+    await productDetail.selectSize(WHITE_TEE.size);
     await productDetail.addToCart();
     await expect(basePage.cartBadge).toHaveText('1');
 
@@ -291,8 +274,8 @@ test.describe('Edge Cases', () => {
     await cartPage.proceedToCheckout();
     await expect(page).toHaveURL('/checkout');
 
-    await checkoutPage.fillShipping({ name: 'Jane Doe', address: '1 Test St', city: 'London', zip: 'EC1A 1BB', country: 'United Kingdom' });
-    await checkoutPage.fillPayment({ name: 'Jane Doe', number: '4242 4242 4242 4242', expiry: '12/30', cvc: '123' });
+    await checkoutPage.fillShipping(SHIPPING);
+    await checkoutPage.fillPayment(PAYMENT);
     await checkoutPage.placeOrder();
 
     await expect(page).toHaveURL(/\/checkout\/confirmation/);
