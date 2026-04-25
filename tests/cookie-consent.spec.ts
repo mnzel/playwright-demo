@@ -14,7 +14,9 @@ test.describe('Cookie Consent Banner', () => {
     await page.evaluate(() => {
       ['sp_consent', 'sp_dynamic', 'sp_expiry'].forEach(k => localStorage.removeItem(k));
     });
-    await page.reload();
+    // waitForLoadState('networkidle') ensures the external Secure Privacy script has
+    // fully loaded and had time to inject the banner into the iframe before tests run.
+    await page.reload({ waitUntil: 'networkidle' });
   });
 
   test('banner appears on first visit when no consent has been given', async ({ page }) => {
