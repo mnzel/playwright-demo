@@ -51,17 +51,13 @@ export class BasePage {
   }
 
   async handleCookieBanner() {
-    // The Secure Privacy banner often takes a moment to inject into the DOM
-    const banner = this.page.locator('#sp-cookie-banner, .sp-cookie-banner');
-    const acceptBtn = this.page.locator('#sp-cookie-allow, .sp-cookie-allow, button:has-text("Accept All")');
-    
+    // The Secure Privacy banner renders inside an iframe — use frameLocator to reach it.
+    // Uses a short timeout; silently skips if banner was already dismissed.
     try {
-      // We use a short timeout as it might not appear if already accepted
-      await acceptBtn.waitFor({ state: 'visible', timeout: 5000 });
-      await acceptBtn.click();
-      await banner.waitFor({ state: 'hidden' });
+      const frame = this.page.frameLocator('iframe[title="Cookie Banner"]');
+      await frame.getByRole('button', { name: 'Accept all' }).click({ timeout: 5000 });
     } catch (e) {
-      // Banner might not have appeared, which is fine
+      // Banner not present or already accepted — safe to continue
     }
   }
 }

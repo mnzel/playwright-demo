@@ -14,8 +14,23 @@ test.describe('Register and Login', () => {
   test.beforeEach(async ({ page }) => {
     basePage = new BasePage(page);
     await basePage.goToHome();
+    // Dismiss the banner first so SP consent is written to localStorage,
+    // then selectively clear app state while preserving SP consent keys.
     await basePage.handleCookieBanner();
-    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => {
+      // Reset auth, cart and promo state. Reset users to just the seeded demo account
+      // so: (a) the duplicate-email test can detect a conflict, and
+      //     (b) the register test starts with no stale entries that could block submission.
+      // SP keys (sp_consent, sp_dynamic, sp_expiry, s_e_c_u_r_e_k_e_y) are preserved
+      // so the banner does not re-appear on subsequent page.goto() calls.
+      localStorage.removeItem('ec_auth_v1');
+      localStorage.removeItem('ec_cart_v1');
+      localStorage.removeItem('ec_promo_used_v1');
+      localStorage.setItem(
+        'ec_users_v1',
+        JSON.stringify([{ email: 'test@example.com', password: 'Password123!', name: 'Test Customer' }])
+      );
+    });
   });
 
   test('should register a new account, logout, and log back in', async ({ page }) => {

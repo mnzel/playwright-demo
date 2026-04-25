@@ -8,6 +8,7 @@ import { ProductDetailPage } from '../page-objects/ProductDetailPage.ts';
 
 test.describe('Checkout Flow', () => {
   let productList: ProductListPage;
+  let productDetail: ProductDetailPage;
   let cartPage: CartPage;
   let loginPage: LoginPage;
   let checkoutPage: CheckoutPage;
@@ -15,36 +16,39 @@ test.describe('Checkout Flow', () => {
 
   test.beforeEach(async ({ page }) => {
     productList = new ProductListPage(page);
+    productDetail = new ProductDetailPage(page);
     cartPage = new CartPage(page);
     loginPage = new LoginPage(page);
     checkoutPage = new CheckoutPage(page);
     confirmationPage = new ConfirmationPage(page);
 
     await productList.goToHome();
-    await productList.handleCookieBanner();
     await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await productList.handleCookieBanner();
   });
 
-  test('should complete a full checkout journey', async ({ page }) => {
+  test('should complete a full checkout journey', async () => {
+    const page = productList.page;
+
     // 1. Browsing & adding item
     await productList.goToShop();
     const slug = 'classic-white-tee-mens';
     await productList.goToProductDetail(slug);
-    const productDetail = new ProductDetailPage(page);
     await productDetail.selectSize('M');
     await productDetail.addToCart();
-    
+
     // 2. Cart review
     await productList.goToCart();
     await cartPage.proceedToCheckout();
-    
+
     // 3. Authentication (must be logged in to checkout)
     await expect(page).toHaveURL(/\/login/);
     await loginPage.login(process.env.DEMO_EMAIL!, process.env.DEMO_PASSWORD!);
-    
+
     // After login, it should redirect to checkout
     await expect(page).toHaveURL(/\/checkout/);
-    
+
     // 4. Fill shipping
     await checkoutPage.fillShipping({
       name: 'John Doe',
@@ -53,7 +57,7 @@ test.describe('Checkout Flow', () => {
       zip: '12345',
       country: 'United Kingdom'
     });
-    
+
     // 5. Fill payment
     await checkoutPage.fillPayment({
       name: 'John Doe',
@@ -61,10 +65,10 @@ test.describe('Checkout Flow', () => {
       expiry: '12/30',
       cvc: '123'
     });
-    
+
     // 6. Place order
     await checkoutPage.placeOrder();
-    
+
     // 7. Confirmation
     await expect(page).toHaveURL(/\/checkout\/confirmation/);
     await expect(confirmationPage.orderId).toBeVisible();

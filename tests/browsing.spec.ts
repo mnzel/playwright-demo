@@ -26,8 +26,9 @@ test.describe('Browsing & Discovery', () => {
     loginPage = new LoginPage(page);
 
     await basePage.goToHome();
-    await basePage.handleCookieBanner();
     await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await basePage.handleCookieBanner();
 
     // Log in before each test as required by spec
     await basePage.goToLogin();

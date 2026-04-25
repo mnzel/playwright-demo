@@ -52,7 +52,18 @@ Every test file imports POMs from `page-objects/`. Instantiate POMs in `beforeEa
 When registering a new user in tests, generate a unique email per run (e.g. `` `user_${Date.now()}@test.example` ``) to avoid collisions with users persisted in `localStorage` from previous test runs.
 
 ### Cookie banner
-The Secure Privacy (`#sp-cookie-banner`) banner is injected asynchronously. Always call `basePage.handleCookieBanner()` before asserting page state. The helper uses a short timeout and silently skips if the banner isn't present.
+The Secure Privacy banner renders inside `iframe[title="Cookie Banner"]` (`id="ifrmCookieBanner"`). `BasePage.handleCookieBanner()` uses `frameLocator()` to reach the button inside — the old page-level selectors (`#sp-cookie-allow`) do not work for iframe-based content.
+
+**Isolation order matters:** call `handleCookieBanner()` first, then clear `localStorage`. Doing it in reverse wipes `sp_consent` after the banner was dismissed — the SP script re-shows the banner on the next `page.goto()` call, blocking form interactions in subsequent navigations.
+
+**Do not clear `s_e_c_u_r_e_k_e_y`** — this is the SP client ID. Removing it prevents the SP script from writing consent to `sp_consent` after "Accept all" is clicked.
+
+**Asserting banner state:** The iframe element itself stays in the DOM with non-zero height even after dismissal, so `expect(iframe).not.toBeVisible()` is unreliable. Instead assert on the button inside the iframe: `frameLocator('iframe[title="Cookie Banner"]').getByRole('button', { name: 'Accept all' })`.
+
+**Consent storage:** After "Accept all", the SP script writes to `localStorage`:
+- `sp_consent` — JSON array of category objects (`ComplianceType`, `ConsentGiven: true`, `LastUpdated`)
+- `sp_dynamic` — object with `saved: true` and `data.c: true`
+- `sp_expiry` — expiry timestamp
 
 ### Known testid gaps
 `data-testid="product-price"` exists **only on the product detail page** (`ProductDetailPage.tsx`). Product list cards (`ProductCard.tsx`) render the price in a CSS-module-scoped `<span>` with no testid. To read prices from the list view, use `page.evaluate()` over `[data-testid^="product-card-"]` elements and extract the `$N.NN` pattern from their `innerText`.
@@ -68,10 +79,3 @@ A mismatched confirm-password surfaces as a **field-level** inline error (`[data
 ### dotenv logging
 The project uses `dotenv` v17+ (dotenvx), which logs `◇ injected env (N) from .env` for every worker process. This is normal — `(2)` on the first line means both env vars loaded successfully. Suppress with `DOTENV_LOG_LEVEL=error` if needed.
 
-## Key Patterns
-
-**Selectors** — prefer human-readable, in order:
-1. `getByRole()`, `getByLabel()`, `getByPlaceholder()`
-2. `getByTestId()` only as a last resort
-
-**Waiting** — never use `waitForTimeout()` for flow control. Use Playwright auto-waiting

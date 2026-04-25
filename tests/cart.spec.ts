@@ -40,8 +40,9 @@ test.describe('Cart and Checkout', () => {
     cartPage = new CartPage(page);
 
     await basePage.goToHome();
-    await basePage.handleCookieBanner();
     await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await basePage.handleCookieBanner();
 
     await basePage.goToLogin();
     await loginPage.login(process.env.DEMO_EMAIL!, process.env.DEMO_PASSWORD!);

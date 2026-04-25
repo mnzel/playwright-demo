@@ -7,8 +7,9 @@ test.describe('Authentication', () => {
   test.beforeEach(async ({ page }) => {
     loginPage = new LoginPage(page);
     await loginPage.goToHome();
-    await loginPage.handleCookieBanner();
     await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await loginPage.handleCookieBanner();
     await loginPage.goToLogin();
   });
 
