@@ -161,3 +161,79 @@ test.describe('End-to-End Shopping Journey', () => {
     await expect(confirmationPage.total).not.toBeEmpty();
   });
 });
+
+test.describe('Edge Cases', () => {
+  let basePage: BasePage;
+  let productDetail: ProductDetailPage;
+
+  test.beforeEach(async ({ page }) => {
+    basePage = new BasePage(page);
+    productDetail = new ProductDetailPage(page);
+
+    await basePage.blockCookieBanner();
+    await basePage.goToHome();
+    await page.evaluate(() => {
+      ['ec_auth_v1', 'ec_cart_v1', 'ec_promo_used_v1', 'ec_users_v1'].forEach(k => localStorage.removeItem(k));
+    });
+    await basePage.handleCookieBanner();
+  });
+
+  test('out-of-stock product disables add to cart and shows correct status', async ({ page }) => {
+    // selvedge-denim-jeans is seeded with inStock: false, stockCount: 0
+    await page.goto('/products/selvedge-denim-jeans');
+    await expect(page).toHaveURL('/products/selvedge-denim-jeans');
+
+    // Stock badge resolves asynchronously — wait for it
+    await expect(productDetail.stockStatus).toBeVisible({ timeout: 3000 });
+    await expect(productDetail.stockStatus).toContainText('Out of stock');
+
+    // Button text changes and becomes disabled
+    await expect(productDetail.addToCartBtn).toBeDisabled();
+    await expect(productDetail.addToCartBtn).toHaveText('Out of stock');
+
+    // Cart badge must not appear — nothing was added
+    await expect(basePage.cartBadge).not.toBeVisible();
+  });
+
+  test('promo code WELCOME10 can only be applied once per session', async ({ page }) => {
+    const WHITE_TEE = 'classic-white-tee-mens';
+    const productDetail = new ProductDetailPage(page);
+
+    await page.goto(`/products/${WHITE_TEE}`);
+    await productDetail.selectSize('M');
+    await productDetail.addToCart();
+
+    await basePage.goToCart();
+
+    // First application — must succeed
+    await page.getByTestId('promo-input').fill('WELCOME10');
+    await page.getByTestId('promo-apply').click();
+    await expect(page.getByTestId('promo-applied')).toBeVisible();
+    await expect(page.getByTestId('promo-applied')).toContainText('WELCOME10');
+
+    // Remove the promo so the input form reappears
+    await page.getByTestId('promo-remove').click();
+    await expect(page.getByTestId('promo-input')).toBeVisible();
+
+    // Second application — must be rejected
+    await page.getByTestId('promo-input').fill('WELCOME10');
+    await page.getByTestId('promo-apply').click();
+    await expect(page.getByTestId('promo-error')).toBeVisible();
+    await expect(page.getByTestId('promo-error')).toContainText(/already used/i);
+    await expect(page.getByTestId('summary-discount')).not.toBeVisible();
+  });
+
+  test('search with no matching query shows empty state', async ({ page }) => {
+    await page.goto('/products');
+    const productList = new ProductListPage(page);
+
+    await productList.search('xyzxyz_no_match');
+
+    await expect(page.getByTestId('product-grid-empty')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('product-grid-empty')).toContainText('No products match');
+
+    // Result count should show 0
+    const countText = await productList.resultCount.innerText();
+    expect(parseInt(countText.split(' ')[0]!)).toBe(0);
+  });
+});
