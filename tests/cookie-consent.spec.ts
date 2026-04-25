@@ -5,7 +5,10 @@ import { test, expect } from '@playwright/test';
 const acceptAllBtn = (page: Parameters<typeof test>[1] extends (args: infer A) => unknown ? A extends { page: infer P } ? P : never : never) =>
   page.frameLocator('iframe[title="Cookie Banner"]').getByRole('button', { name: 'Accept all' });
 
+// These tests depend on the live secureprivacy.ai CDN — one retry guards against
+// a single slow response without masking real failures in other test files.
 test.describe('Cookie Consent Banner', () => {
+  test.describe.configure({ retries: 1 });
   test.beforeEach(async ({ page }) => {
     // Navigate once to establish the origin, wipe SP consent keys (but keep the
     // client-ID key so the SP script can write consent after accepting), then reload
