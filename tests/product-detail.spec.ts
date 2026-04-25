@@ -40,9 +40,10 @@ test.describe('Product Detail', () => {
       await page.goto(`/products/${product.slug}`);
       await expect(page).toHaveURL(`/products/${product.slug}`);
 
-      await expect(page.getByTestId('product-name')).toContainText(product.name);
-      await expect(page.getByTestId('product-price')).toBeVisible();
-      await expect(page.getByTestId('product-description')).toBeVisible();
+      const detail = page.getByTestId('page-product-detail');
+      await expect(detail.getByTestId('product-name')).toContainText(product.name);
+      await expect(detail.getByTestId('product-price')).toBeVisible();
+      await expect(detail.getByTestId('product-description')).toBeVisible();
 
       // Stock badge appears after a ~300 ms async check
       const stockBadge = page.getByTestId('page-product-detail').getByTestId('stock-badge').first();
