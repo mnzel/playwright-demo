@@ -1,6 +1,6 @@
 # 🛍️ Northwind Goods — E2E Test Suite
 
-End-to-end test automation for the Northwind Goods storefront, built with **Playwright** and **TypeScript**. The suite covers 44 tests across 8 spec files, all running against a real React + Vite app with a live third-party cookie consent integration.
+End-to-end test automation for the Northwind Goods storefront, built with **Playwright** and **TypeScript**. The suite covers 9 tests across 4 spec files, all running against a real React + Vite app with a live third-party cookie consent integration.
 
 ---
 
@@ -45,106 +45,81 @@ playwright-demo/
 
 | Command | Description |
 |---|---|
-| `npm test` | Run all 44 tests headlessly |
+| `npm test` | Run all 9 tests headlessly |
 | `npm run test:ui` | Open the Playwright interactive UI |
 | `npm run test:debug` | Step through tests with the debugger |
-| `npx playwright test tests/cart.spec.ts` | Run a single spec file |
-| `npx playwright test -g "promo code"` | Run tests matching a name pattern |
+| `npx playwright test tests/journey.spec.ts` | Run a single spec file |
+| `npx playwright test -g "checkout"` | Run tests matching a name pattern |
 
 ---
 
 ## 🧪 Test Coverage
 
-### 💨 Smoke (`smoke.spec.ts`) — 2 tests
-Quick sanity checks that the app is up and navigable.
-- Homepage loads with the correct title and logo
-- Shop navigation routes to `/products`
+### 🔐 Authentication (`auth.spec.ts`) — 1 test
 
----
+A single flow that covers the full login lifecycle in one pass — no duplicate setup overhead.
 
-### 🔐 Authentication (`authentication.spec.ts`) — 3 tests
-Verifies the login/logout flow for the seeded demo user.
-- Successful login redirects to home and shows the user name
-- Invalid credentials display an inline error
-- Logout clears session state and returns to the guest view
+- Submits invalid credentials → asserts the inline error message appears and URL stays at `/login`
+- Submits valid credentials → asserts "Welcome back" toast, redirect to `/`, and user name in header
+- Logs out → asserts account menu reverts to guest state
 
 ---
 
 ### 📝 Register & Login (`register-login.spec.ts`) — 4 tests
-Full account lifecycle using a unique email per run to avoid localStorage collisions.
-- Register a new account, log out, then log back in
-- Invalid credentials show an error without redirecting
-- Mismatched passwords surface a field-level inline error (not the form banner)
-- Attempting to register a duplicate email shows a conflict error
+
+Full account registration lifecycle plus form validation edge cases. Each test generates a unique email per run to avoid localStorage collisions across parallel workers.
+
+- **Register, logout, log back in** — new account created, credentials written to localStorage, re-login with the same credentials succeeds
+- **Invalid credentials** — error shown on login, URL stays at `/login`
+- **Mismatched passwords** — field-level inline error on the confirm-password input (not the form-level banner)
+- **Duplicate email** — form-level conflict error shown, URL stays at `/register`
 
 ---
 
-### 🏠 Browsing & Discovery (`browsing.spec.ts`) — 12 tests
-Covers homepage content, category navigation, search, and product sorting.
-- Homepage shows free-shipping banner, category tiles, and featured products
-- Each of the 4 category tiles navigates to the correct filtered URL (parameterised)
-- Shop link navigates to `/products`
-- Search returns results for 4 different product names (parameterised)
-- Sort by price ascending orders products cheapest first
-- Sort by price descending orders products most expensive first
+### 🛒 End-to-End Shopping Journey (`journey.spec.ts`) — 1 test
 
-> ℹ️ Price sorting uses `page.evaluate()` to extract `$N.NN` from card `innerText` because product list cards have no `data-testid` on their price element.
+A single sequential flow covering the entire purchase funnel from first load to order confirmation. Each step validates a distinct layer of the app.
 
----
-
-### 🔍 Product Detail (`product-detail.spec.ts`) — 11 tests
-Validates the product detail page for 4 different products (parameterised).
-- Correct product name, price, description, and stock status are displayed
-- All size options are visible and the selected size gets an active state
-- Add to cart is blocked until a size is selected (error message shown)
-- Quantity stepper increments and the cart badge reflects the total
-- Searching for a product on `/products` and clicking it reaches the detail page
-
----
-
-### 🛒 Cart & Checkout (`cart.spec.ts`) — 8 tests
-Covers the full cart lifecycle and a complete checkout journey.
-- Search, navigate to detail, increase quantity to 2, and add to cart — badge shows `2`
-- Cart page displays line item, subtotal, total, and free-shipping unlock message
-- Updating line item quantity updates the cart badge and total
-- Full checkout: add item → cart → fill shipping & payment → confirm order
-- Removing an item empties the cart and hides the badge
-- Applying promo code `WELCOME10` gives exactly 10% off the subtotal
-- Applying an invalid promo code shows an inline error and no discount
-- Unauthenticated users are redirected to `/login` before checkout, then forwarded back
-
----
-
-### 🔁 Checkout Flow (`checkout.spec.ts`) — 1 test
-Standalone end-to-end journey that also validates the auth redirect contract.
-- Adds a product → goes to cart → is redirected to login → logs in → lands on `/checkout` → fills shipping & payment → confirms order with visible order ID and line item
+1. **Homepage** — correct title, logo, free-shipping banner, category section visible
+2. **Category navigation** — clicking "Men's Apparel" tile updates URL to `?category=apparel-mens` and shows the correct heading
+3. **Search** — navigate to `/products`, search for "Cashmere Cardigan", assert the product card appears and result count is non-zero
+4. **Sort** — sort by price ascending, assert every card's price ≤ the next (extracted via `page.evaluate()`)
+5. **Product detail** — navigate directly to `/products/cashmere-cardigan`, assert name, price, description, stock badge, and all size options
+6. **Add to cart** — select size M, add to cart, assert badge shows `1`
+7. **Cart review** — line item visible, subtotal shown, free-shipping unlock message shown ($165 item exceeds $50 threshold)
+8. **Promo code** — apply `WELCOME10`, assert 10% discount value matches `subtotal × 0.1`
+9. **Auth redirect** — unauthenticated checkout redirects to `/login`; after login, auto-forwarded to `/checkout`
+10. **Checkout** — fill shipping and payment, place order
+11. **Confirmation** — URL matches `/checkout/confirmation`, order ID and line item visible, total non-empty
 
 ---
 
 ### 🍪 Cookie Consent (`cookie-consent.spec.ts`) — 3 tests
-Tests the live [Secure Privacy](https://secureprivacy.ai) cookie banner integration — the most relevant suite given the company's core product.
+
+Dedicated suite for the live [Secure Privacy](https://secureprivacy.ai) banner integration — the most domain-relevant suite given the product is a privacy compliance platform.
 
 - **Banner appears on first visit** — with no prior consent in localStorage, the "Accept all" button is visible inside the consent iframe
 - **Accepting writes consent to localStorage** — after clicking "Accept all", `sp_consent` contains all 3 categories (Essential, Analytics, Advertising) each with `ConsentGiven: true`, and `sp_dynamic.saved` flips to `true`
-- **Consent persists across reload** — after accepting, a full page reload does not re-show the banner, proving the persistence contract works end-to-end
+- **Consent persists across reload** — a full page reload does not re-show the banner, proving the end-to-end persistence contract
 
-> ℹ️ The SP banner renders inside `iframe[title="Cookie Banner"]`. Tests use `frameLocator()` to reach the button and assert on its presence/absence rather than the iframe element itself (which stays in the DOM at non-zero height even after dismissal).
+> ℹ️ The SP banner renders inside `iframe[title="Cookie Banner"]`. Tests use `frameLocator()` to reach the button — the iframe element itself stays in the DOM after dismissal, so asserting on the button's visibility is the reliable approach.
 
 ---
 
 ## 🏗️ Architecture Notes
 
 ### Page Object Model
-All page interactions live in `page-objects/`. `BasePage` provides shared nav, header locators, and `handleCookieBanner()`. Every other POM extends `BasePage`.
+All page interactions live in `page-objects/`. `BasePage` provides shared nav, header locators, and two key helpers:
+- `blockCookieBanner()` — aborts all requests to `secureprivacy.ai` via `page.route()`. Used in every suite that is not testing consent behaviour.
+- `handleCookieBanner()` — accepts the banner via `frameLocator()` if it appears. Used as a safety net.
 
 ### Test Isolation
 Each `beforeEach` follows this order:
-1. Navigate to home
-2. Clear app-specific `localStorage` keys (`ec_*`)
-3. Reload so the SP script re-evaluates consent
-4. Call `handleCookieBanner()` to dismiss the banner
+1. Call `blockCookieBanner()` before the first `page.goto()` (prevents the CDN script from loading)
+2. Navigate to home
+3. Clear only app-specific `localStorage` keys (`ec_*`) — SP consent keys are preserved
 
-> ⚠️ **Order matters:** clearing localStorage *after* dismissing the banner wipes `sp_consent`, causing the banner to reappear on the next `page.goto()` and block form interactions.
+> ⚠️ **Never clear `s_e_c_u_r_e_k_e_y`** — this is the SP client ID. Removing it prevents the SP script from writing consent to `sp_consent` after "Accept all" is clicked.
 
 ### App State
 Everything is client-side — no backend. Auth, cart, users, and promo state all live in `localStorage` under `ec_*` keys. The demo user (`test@example.com` / `Password123!`) is auto-seeded by the app on first load.
