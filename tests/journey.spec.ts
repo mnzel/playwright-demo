@@ -236,4 +236,71 @@ test.describe('Edge Cases', () => {
     const countText = await productList.resultCount.innerText();
     expect(parseInt(countText.split(' ')[0]!)).toBe(0);
   });
+
+  test('cart persists across page refresh', async ({ page }) => {
+    await page.goto('/products/classic-white-tee-mens');
+    const productDetail = new ProductDetailPage(page);
+    await productDetail.selectSize('M');
+    await productDetail.addToCart();
+    await expect(basePage.cartBadge).toHaveText('1');
+
+    // Hard reload — localStorage should restore cart state
+    await page.reload();
+    await expect(basePage.cartBadge).toHaveText('1');
+
+    // Line item is still present in the cart
+    await basePage.goToCart();
+    await expect(page.getByTestId('cart-line-list').getByTestId('cart-line-classic-white-tee-mens')).toBeVisible();
+  });
+
+  test('quantity stepper cannot go below 1', async ({ page }) => {
+    await page.goto('/products/classic-white-tee-mens');
+
+    // Decrement button starts disabled at the minimum (qty = 1)
+    await expect(page.getByTestId('qty-decrement')).toBeDisabled();
+    await expect(page.getByTestId('qty-value')).toHaveValue('1');
+
+    // Increment to 2 then decrement back — button re-enables then disables again
+    await page.getByTestId('qty-increment').click();
+    await expect(page.getByTestId('qty-decrement')).toBeEnabled();
+    await page.getByTestId('qty-decrement').click();
+
+    await expect(page.getByTestId('qty-value')).toHaveValue('1');
+    await expect(page.getByTestId('qty-decrement')).toBeDisabled();
+  });
+
+  test('cart is cleared after successful order', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+    const productDetail = new ProductDetailPage(page);
+    const cartPage = new CartPage(page);
+    const checkoutPage = new CheckoutPage(page);
+    const confirmationPage = new ConfirmationPage(page);
+
+    // Log in first — checkout requires auth
+    await basePage.goToLogin();
+    await loginPage.login(process.env.DEMO_EMAIL!, process.env.DEMO_PASSWORD!);
+    await expect(page).toHaveURL('/');
+
+    // Add item and go to checkout
+    await page.goto('/products/classic-white-tee-mens');
+    await productDetail.selectSize('M');
+    await productDetail.addToCart();
+    await expect(basePage.cartBadge).toHaveText('1');
+
+    await basePage.goToCart();
+    await cartPage.proceedToCheckout();
+    await expect(page).toHaveURL('/checkout');
+
+    await checkoutPage.fillShipping({ name: 'Jane Doe', address: '1 Test St', city: 'London', zip: 'EC1A 1BB', country: 'United Kingdom' });
+    await checkoutPage.fillPayment({ name: 'Jane Doe', number: '4242 4242 4242 4242', expiry: '12/30', cvc: '123' });
+    await checkoutPage.placeOrder();
+
+    await expect(page).toHaveURL(/\/checkout\/confirmation/);
+    await expect(confirmationPage.orderId).toBeVisible();
+
+    // Cart must be empty after order — badge gone, cart page shows empty state
+    await expect(basePage.cartBadge).not.toBeVisible();
+    await basePage.goToCart();
+    await expect(page.getByTestId('cart-empty')).toBeVisible();
+  });
 });
