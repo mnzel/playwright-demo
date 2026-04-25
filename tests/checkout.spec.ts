@@ -23,8 +23,9 @@ test.describe('Checkout Flow', () => {
     confirmationPage = new ConfirmationPage(page);
 
     await productList.goToHome();
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
+    await page.evaluate(() => {
+      ['ec_auth_v1', 'ec_cart_v1', 'ec_promo_used_v1', 'ec_users_v1'].forEach(k => localStorage.removeItem(k));
+    });
     await productList.handleCookieBanner();
   });
 

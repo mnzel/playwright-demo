@@ -20,7 +20,7 @@ export class BasePage {
   }
 
   async goToHome() {
-    await this.page.goto('/');
+    await this.page.goto('/', { waitUntil: 'networkidle' });
   }
 
   async goToShop() {

@@ -12,10 +12,7 @@ interface ProductFixture {
 }
 
 const PRODUCTS: ProductFixture[] = [
-  { name: 'Classic White Tee', slug: 'classic-white-tee-mens', sizes: ['XS', 'S', 'M', 'L', 'XL'], inStock: true },
   { name: 'Cashmere Cardigan', slug: 'cashmere-cardigan', sizes: ['XS', 'S', 'M', 'L'], inStock: true },
-  { name: 'Navy Oxford Shirt', slug: 'navy-oxford-shirt', sizes: ['S', 'M', 'L', 'XL'], inStock: true },
-  { name: 'Merino Wool Sweater', slug: 'merino-wool-sweater', sizes: ['S', 'M', 'L', 'XL'], inStock: true },
 ];
 
 test.describe('Product Detail', () => {
@@ -28,8 +25,9 @@ test.describe('Product Detail', () => {
     const loginPage = new LoginPage(page);
 
     await basePage.goToHome();
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
+    await page.evaluate(() => {
+      ['ec_auth_v1', 'ec_cart_v1', 'ec_promo_used_v1', 'ec_users_v1'].forEach(k => localStorage.removeItem(k));
+    });
     await basePage.handleCookieBanner();
 
     await basePage.goToLogin();
