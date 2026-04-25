@@ -39,6 +39,7 @@ test.describe('Cart and Checkout', () => {
     productDetail = new ProductDetailPage(page);
     cartPage = new CartPage(page);
 
+    await basePage.blockCookieBanner();
     await basePage.goToHome();
     await page.evaluate(() => {
       ['ec_auth_v1', 'ec_cart_v1', 'ec_promo_used_v1', 'ec_users_v1'].forEach(k => localStorage.removeItem(k));

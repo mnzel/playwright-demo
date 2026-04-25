@@ -6,6 +6,7 @@ test.describe('Authentication', () => {
 
   test.beforeEach(async ({ page }) => {
     loginPage = new LoginPage(page);
+    await loginPage.blockCookieBanner();
     await loginPage.goToHome();
     await page.evaluate(() => {
       ['ec_auth_v1', 'ec_cart_v1', 'ec_promo_used_v1', 'ec_users_v1'].forEach(k => localStorage.removeItem(k));

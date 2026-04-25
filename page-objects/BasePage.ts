@@ -20,7 +20,13 @@ export class BasePage {
   }
 
   async goToHome() {
-    await this.page.goto('/', { waitUntil: 'networkidle' });
+    await this.page.goto('/');
+  }
+
+  async blockCookieBanner() {
+    // Abort the Secure Privacy script so the banner never injects.
+    // Call this in beforeEach for any test suite that is NOT testing consent behaviour.
+    await this.page.route('**secureprivacy.ai**', route => route.abort());
   }
 
   async goToShop() {

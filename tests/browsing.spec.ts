@@ -25,6 +25,7 @@ test.describe('Browsing & Discovery', () => {
     basePage = new BasePage(page);
     loginPage = new LoginPage(page);
 
+    await basePage.blockCookieBanner();
     await basePage.goToHome();
     await page.evaluate(() => {
       ['ec_auth_v1', 'ec_cart_v1', 'ec_promo_used_v1', 'ec_users_v1'].forEach(k => localStorage.removeItem(k));

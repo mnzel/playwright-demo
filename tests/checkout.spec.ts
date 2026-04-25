@@ -22,6 +22,7 @@ test.describe('Checkout Flow', () => {
     checkoutPage = new CheckoutPage(page);
     confirmationPage = new ConfirmationPage(page);
 
+    await productList.blockCookieBanner();
     await productList.goToHome();
     await page.evaluate(() => {
       ['ec_auth_v1', 'ec_cart_v1', 'ec_promo_used_v1', 'ec_users_v1'].forEach(k => localStorage.removeItem(k));

@@ -13,6 +13,7 @@ test.describe('Register and Login', () => {
 
   test.beforeEach(async ({ page }) => {
     basePage = new BasePage(page);
+    await basePage.blockCookieBanner();
     await basePage.goToHome();
     // Dismiss the banner first so SP consent is written to localStorage,
     // then selectively clear app state while preserving SP consent keys.
